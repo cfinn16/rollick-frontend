@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "category": newEventCategory,
             "location": newEventLocation,
             "min_capacity": newEventMinAttendance,
-            "max_capacity": newEventMaxAttendance, 
+            "max_capacity": newEventMaxAttendance,
             "date": newEventDate,
             "time": newEventTime,
             "image_url": newEventImageURL,
@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         foundEvent = allEvents.find( event => event.id == e.target.dataset.id)
         jumbotronContainer.style.display = "none"
         console.log(foundEvent);
+        console.log(foundEvent.users)
         eventsContainer.innerHTML = renderEventInfo(foundEvent)
       }
 
