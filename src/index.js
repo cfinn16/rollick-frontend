@@ -1,5 +1,6 @@
 let allEvents = []
 let foundEvent
+let foundUserEvent
 document.addEventListener('DOMContentLoaded', () => {
   console.log("still running");
 
@@ -33,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   //RENDERS HTML FOR INDIVIDUAL EVENT
   function renderEventCard(event) {
     const eventTime = formatTime(event)
+    const eventDate = formatDate(event)
     return `
     <div class="col-md-12">
       <div class="card flex-md-row mb-4 shadow-sm h-md-250">
@@ -41,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <h3 class="mb-0">
             <a class="text-dark">${event.title}</a>
           </h3>
-          <div class="mb-1 text-muted">${event.date} ${eventTime}</div>
+          <div class="mb-1 text-muted">${eventDate} at ${eventTime}</div>
           <button class="btn btn-info btn-lg" data-action="more-info" data-id=${event.id}>Learn More</button>
         </div>
         <img src="${event.image_url}" style="width:50%; height:100%">
@@ -68,11 +70,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return formattedTime
   }
 
+  function formatDate(event) {
+    let formattedDate
+    const dateArray = event.date.split("-")
+    const dateYear = dateArray[0]
+    const dateMonth = dateArray[1]
+    const dateDay = dateArray[2]
+    return `${dateMonth}/${dateDay}/${dateYear}`
+  }
+
+
   // RENDER THE NEW EVENT FORM IN PLACE OF THE EVENTS INDEX
   jumbotronContainer.addEventListener("click", e => {
     e.preventDefault()
     if (e.target.dataset.id === "render-new-event-form") {
-      renderNewEventForm()
+      eventsContainer.innerHTML = renderNewEventForm()
     }
   })//END OF LISTENER
 
@@ -127,40 +139,99 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.dataset.action === "more-info") {
       foundEvent = allEvents.find( event => event.id == e.target.dataset.id)
       jumbotronContainer.style.display = "none"
-      console.log(foundEvent);
       eventsContainer.innerHTML = renderEventInfo(foundEvent)
     }
 
     if (e.target.dataset.action === "join-event") {
       const eventId = e.target.dataset.id
-
-      fetch('http://localhost:3000/api/v1/user_events', {
+      let userEventObj
+      fetch("http://localhost:3000/api/v1/user_events", {
         method: "POST",
-
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json"
         },
-
         body: JSON.stringify({
-          "title": newEventTitle,
-          "duration": newEventDuration,
-          "category": newEventCategory,
-          "location": newEventLocation,
-          "min_capacity": newEventMinAttendance,
-          "max_capacity": newEventMaxAttendance,
-          "date": newEventDate,
-          "time": newEventTime,
-          "image_url": newEventImageURL,
-          "description": newEventDescription
+          "user_id": 1,
+          "event_id": eventId
         })
+      })
+      .then( resp => resp.json())
+      .then( userEvent => {
+        e.target.innerText = "Attending"
+        e.target.parentNode.innerHTML = `<button data-action="attending" type="button" class="btn btn-outline-success btn-sm">Attending</button>`
+        foundUserEvent = userEvent;
+        // foundEvent = allEvents.find(event => event.id === userEvent.event_id)
+        // console.log(foundEvent);
+        // eventsContainer.innerHTML = renderEventInfo(foundEvent)
+        window.alert("Successfully Signed Up!")
+
+        // NEED TO UPDATE NUM OF ATTENDEES RENDERED ON PAGE AFTER FETCH REQUEST
+      })
+    }
+
+    if (e.target.dataset.action === "attending") {
+      fetch(`http://localhost:3000/api/v1/user_events/${foundUserEvent.id}`, {method: "DELETE"})
+      .then( resp => {
+        window.alert("WOW, ok. Whatever we don't want you to come.")
+        e.target.parentNode.innerHTML = `<button data-action="join-event" data-id="${foundEvent.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>`
+      })
+    }
+
+    if (e.target.dataset.action === "edit-event") {
+      eventsContainer.innerHTML += `<br>
+       ${renderEditEventForm(foundEvent)}
+      `
+    }
+    if (e.target.dataset.action === "cancel-edit") {
+      e.preventDefault()
+      const editEventFormContainer = document.querySelector("#edit-event-form")
+      editEventFormContainer.remove()
+      console.log(foundEvent.id);
+    }
+    if (e.target.dataset.action === "submit-edit") {
+      const editEventFormContainer = document.querySelector("#edit-event-form")
+      const editEventTitle = document.querySelector("#title").value
+      const editEventDescription = document.querySelector("#description").value
+      const editEventLocation = document.querySelector("#location").value
+      const editEventCategory = document.querySelector("#category").value
+      const editEventMaxCapacity = document.querySelector("#max_attendance").value
+      const editEventMinCapacity = document.querySelector("#min_attendance").value
+      const editEventDate = document.querySelector("#date").value
+      const editEventTime = document.querySelector("#time").value
+      const editEventDuration = document.querySelector("#duration").value
+      const editEventImageUrl = document.querySelector("#image_url").value
+      fetch(`${endPoint}/${foundEvent.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          "title": editEventTitle,
+          "description": editEventDescription,
+          "location": editEventLocation,
+          "category": editEventCategory,
+          "max_capacity": editEventMaxCapacity,
+          "min_capacity": editEventMinCapacity,
+          "date": editEventDate,
+          "time": editEventTime,
+          "duration": editEventDuration,
+          "image_url": editEventImageUrl
+        })
+      })
+      .then( resp => resp.json())
+      .then( edittedEvent => {
+        editEventFormContainer.remove()
+        eventsContainer.innerHTML = renderEventInfo(edittedEvent)
+        console.log(edittedEvent);
       })
     }
   })
 
   // NEW EVENT FORM
   function renderNewEventForm() {
-    eventsContainer.innerHTML = `
+    return `
     <form id="new-event-form" class="needs-validation" novalidate >
       <div class="form-row">
         <div class="col-md-4 mb-3">
@@ -226,20 +297,191 @@ document.addEventListener('DOMContentLoaded', () => {
     `
   }
 
+  function renderEditEventForm(event) {
+    return `
+    <form id="edit-event-form" class="needs-validation" novalidate >
+      <div class="form-row">
+        <div class="col-md-4 mb-3">
+          <label for="title">Title of Event</label>
+          <input type="text" class="form-control" id="title" value="${event.title}" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label for="duration">Duration (in hours)</label>
+          <input type="number" class="form-control" id="duration" value="${event.duration}" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label for="category">Category</label>
+          <select id="category" class="custom-select">
+            <option selected>What kind of event is it?</option>
+            <option value="Travel & Adventure">Travel & Adventure</option>
+            <option value="Sports">Sports</option>
+            <option value="Arts">Arts</option>
+            <option value="Culture">Culture</option>
+            <option value="Career & Business">Career & Business</option>
+            <option value="Food & Drink">Food & Drink</option>
+            <option value="Family & Pets">Family & Pets</option>
+            <option value="Learning">Learning</option>
+            <option value="Health">Health</option>
+            <option value="Style">Style</option>
+            <option value="Party">Party</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col-md-6 mb-3">
+          <label for="location">Location</label>
+          <input type="text" class="form-control" id="location" value="${event.location}" required>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="min_attendance">Minimum Attendance</label>
+          <input type="number" class="form-control" id="min_attendance" value="${event.min_capacity}" required>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="max_attendance">Maximum Attendance</label>
+          <input type="number" class="form-control" id="max_attendance" value="${event.max_capacity}" required>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="date">Date</label>
+          <input type="date" class="form-control" id="date" value="${event.date}" required>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="time">Time</label>
+          <input type="time" class="form-control" id="time" value="" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="image_url">Image URL</label>
+          <input type="text" class="form-control" id="image_url" value="${event.image_url}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col-md-12 mb-0">
+          <label for="description">Description</label>
+          <textarea class="form-control" id="description" value="${event.description}" required></textarea>
+        </div>
+      </div><br>
+      <button data-action="cancel-edit" class="btn btn-primary">Cancel</button><button data-action="submit-edit" class="btn btn-primary" type="submit">Edit Event</button>
+      </form>
+    `
+  }
+
+  function showAttendees(event) {
+    if (event.users.length < 10) {
+      return event.users.map(user => {
+        return `<li>${user.name}</li>`
+      }).join('')
+    } else {
+      const lastTen = event.users.slice(event.users.length - 10, event.users.length)
+      return lastTen.map(user => {
+        return `<li>${user.name}</li>`
+      }).join('')
+    }
+  }
+
   function renderEventInfo(event) {
     const eventTime = formatTime(event)
+    const eventDate = formatDate(event)
     return `
-    <div class="col-md-6">
-      <div class="card mb-12 box-shadow">
-        <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
-        <div class="card-body">
-          <h3>${event.title}</h3>
-          <p class="card-text">${event.description}</p>
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="btn-group">
-              <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-12 box-shadow">
+          <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
+          <div class="card-body">
+            <h3>${event.title}</h3>
+            <p class="card-text">${event.location}</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="btn-group">
+                <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
+              </div>
+              <small class="text-muted">${eventDate} at ${eventTime}</small>
             </div>
-            <small class="text-muted">${event.date} ${eventTime}</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card mb-12 box-shadow">
+
+          <div class="card-body">
+            <p class="card-text">${event.description}</p>
+          </div>
+          <div class="card-body">
+            <p class="card-text">${event.max_capacity - event.users.length} spots remaining out of ${event.max_capacity}</p>
+          </div>
+          <div class="card-body">
+            <p class="card-text">Who's Attending:</p>
+            <ul id="attendee-list">
+              ${showAttendees(event)}
+            </ul>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="btn-group">
+                <button data-action="edit-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-info">Edit Event</button>
+              </div>
+              <div class="btn-group">
+                <button data-action="delete-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger">Delete Event</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    `
+  }
+
+
+  function showAttendees(event) {
+    if (event.users.length < 10) {
+      return event.users.map(user => {
+        return `<li>${user.name}</li>`
+      }).join('')
+    } else {
+      const lastTen = event.users.slice(event.users.length - 10, event.users.length)
+      return lastTen.map(user => {
+        return `<li>${user.name}</li>`
+      }).join('')
+    }
+  }
+
+  function renderEventInfo(event) {
+    const eventTime = formatTime(event)
+    const eventDate = formatDate(event)
+    return `
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-12 box-shadow">
+          <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
+          <div class="card-body">
+            <h3>${event.title}</h3>
+            <p class="card-text">${event.location}</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="btn-group">
+                <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
+              </div>
+              <small class="text-muted">${eventDate} at ${eventTime}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card mb-12 box-shadow">
+
+          <div class="card-body">
+            <p class="card-text">${event.description}</p>
+          </div>
+          <div class="card-body">
+            <p class="card-text">${event.max_capacity - event.users.length} spots remaining out of ${event.max_capacity}</p>
+          </div>
+          <div class="card-body">
+            <p class="card-text">Who's Attending:</p>
+            <ul id="attendee-list">
+              ${showAttendees(event)}
+            </ul>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="btn-group">
+                <button data-action="edit-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-info">Edit Event</button>
+              </div>
+              <div class="btn-group">
+                <button data-action="delete-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger">Delete Event</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
