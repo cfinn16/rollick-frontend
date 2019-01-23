@@ -1,6 +1,7 @@
 let allEvents = []
 let foundEvent
 let foundUserEvent
+let currentUser
 document.addEventListener('DOMContentLoaded', () => {
   console.log("still running");
 
@@ -9,6 +10,87 @@ document.addEventListener('DOMContentLoaded', () => {
   const newEventFormContainer = document.querySelector("#new-event-form")
   const categoriesNavController = document.querySelector("#categories-nav")
   const blogHeaderContainer = document.querySelector(".blog-header")
+  const logInOrSignUpContainer = document.querySelector("#login-or-signup")
+  const mainContainer = document.querySelector("#main")
+
+  logInOrSignUpContainer.addEventListener("click", e => {
+    if (e.target.dataset.action === "log-in") {
+      logInOrSignUpContainer.innerHTML = `
+      <form id="form-signin" class="text-center">
+        <img class="mb-4" src="../../assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
+        <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
+        <label for="name" class="sr-only">Name</label>
+        <input type="text" id="inputName" class="form-control" placeholder="Name" required="" autofocus="" value=""><br>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
+      </form>
+      `
+      const signInFormContainer = document.querySelector("#form-signin")
+
+      signInFormContainer.addEventListener("submit", e => {
+        e.preventDefault()
+        const returningUserName = (e.target.querySelector("#inputName").value)
+        fetch('http://localhost:3000/api/v1/users')
+        .then(resp => resp.json())
+        .then( users => {
+          currentUser = users.find(user => user.name === returningUserName)
+          if (users.includes(currentUser)) {
+            logInOrSignUpContainer.style.display = "none"
+            mainContainer.style.display = "block"
+            console.log(currentUser);
+            renderAllEvents()
+          } else {
+            window.alert("You are not a user! Please sign up.")
+          }
+        })
+      })
+
+    } else if (e.target.dataset.action === "sign-up") {
+      logInOrSignUpContainer.innerHTML = `
+      <form id="form-signup" class="text-center">
+        <img class="mb-4" src="../../assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
+        <h1 class="h3 mb-3 font-weight-normal">Please sign up</h1>
+        <label for="name" class="sr-only">Name</label>
+        <input type="text" id="inputName" class="form-control" placeholder="Name" required="" autofocus="" value=""><br>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign Up</button>
+      </form>
+      `
+      const signUpFormContainer = document.querySelector("#form-signup")
+
+      signUpFormContainer.addEventListener("submit", e => {
+        const returningUserName = (e.target.querySelector("#inputName").value)
+        fetch('http://localhost:3000/api/v1/users', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          },
+          body: JSON.stringify({
+            "name": returningUserName
+          })
+        })
+        .then( resp => resp.json())
+        .then( user => {
+          currentUser = user
+          logInOrSignUpContainer.style.display = "none"
+          mainContainer.style.display = "block"
+          console.log(currentUser);
+          renderAllEvents()
+        })
+
+      }) // End of signUpFormContainer listener
+    // })
+    }
+  })
+
+
+
+  // RENDER SIGN-IN/SIGN-UP PAGE
+  // const signInFormContainer = document.querySelector("#form-signin")
+  //
+  // signInFormContainer.addEventListener("submit", e => {
+  //   e.preventDefault()
+  //   console.log(e.target)
+  // })
 
   // RENDER ALL EVENTS ON PAGE LOAD
   const endPoint = 'http://localhost:3000/api/v1/events';
@@ -18,11 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(events => {
         allEvents = events
         eventsContainer.innerHTML = ""
-        console.log(events)
         mapAllEvents(events)
       });//END OF GET EVENTS FETCH
   }
-  renderAllEvents()
+  // renderAllEvents()
 
   // MAP THROUGH EVENTS ARRAY AND CALL RENDEREVENTCARD()
   function mapAllEvents(events) {
@@ -143,31 +224,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (e.target.dataset.action === "join-event") {
-      const eventId = e.target.dataset.id
-      let userEventObj
-      fetch("http://localhost:3000/api/v1/user_events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        },
-        body: JSON.stringify({
-          "user_id": 1,
-          "event_id": eventId
+      if (foundEvent.max_capacity > foundEvent.users.length) {
+        const eventId = e.target.dataset.id
+        let userEventObj
+        fetch("http://localhost:3000/api/v1/user_events", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          },
+          body: JSON.stringify({
+            "user_id": currentUser.id,
+            "event_id": eventId
+          })
         })
-      })
-      .then( resp => resp.json())
-      .then( userEvent => {
-        e.target.innerText = "Attending"
-        e.target.parentNode.innerHTML = `<button data-action="attending" type="button" class="btn btn-outline-success btn-sm">Attending</button>`
-        foundUserEvent = userEvent;
-        // foundEvent = allEvents.find(event => event.id === userEvent.event_id)
-        // console.log(foundEvent);
-        // eventsContainer.innerHTML = renderEventInfo(foundEvent)
-        window.alert("Successfully Signed Up!")
+        .then( resp => resp.json())
+        .then( userEvent => {
+          e.target.innerText = "Attending"
+          e.target.parentNode.innerHTML = `<button data-action="attending" type="button" class="btn btn-outline-success btn-sm">Attending</button>`
+          window.alert("Successfully Signed Up!")
+          fetch(`${endPoint}/${userEvent.event_id}`)
+          .then(resp => resp.json())
+          .then( joinedEvent => {
+            eventsContainer.innerHTML = renderEventInfo(joinedEvent)
+            foundEvent = joinedEvent
+          })
 
-        // NEED TO UPDATE NUM OF ATTENDEES RENDERED ON PAGE AFTER FETCH REQUEST
-      })
+          // NEED TO UPDATE NUM OF ATTENDEES RENDERED ON PAGE AFTER FETCH REQUEST
+        })
+      } else {
+        window.alert("Sorry, that event is at capacity.")
+      }
     }
 
     if (e.target.dataset.action === "attending") {
@@ -227,7 +314,19 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(edittedEvent);
       })
     }
-  })
+
+    if (e.target.dataset.action === "delete-event") {
+      console.log(foundEvent)
+      fetch(`${endPoint}/${foundEvent.id}`, {
+        method: "DELETE"
+      })
+      .then(res => {
+        window.alert("bye bye")
+        renderAllEvents()
+      })
+
+    }
+  })//END OF eventsContainer Listener
 
   // NEW EVENT FORM
   function renderNewEventForm() {
@@ -494,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredArray = []
     const target = e.target.dataset.id;
     if (target === "arts") {
-      filterCategories("Art")
+      filterCategories("Arts")
     }
     if (target === "sports") {
       filterCategories("Sports")
