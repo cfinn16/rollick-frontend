@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const logInOrSignUpContainer = document.querySelector("#login-or-signup")
   const mainContainer = document.querySelector("#main")
 
+
   logInOrSignUpContainer.addEventListener("click", e => {
     if (e.target.dataset.action === "log-in") {
       logInOrSignUpContainer.innerHTML = `
@@ -224,34 +225,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (e.target.dataset.action === "join-event") {
+      e.preventDefault()
       if (foundEvent.max_capacity > foundEvent.users.length) {
-        const eventId = e.target.dataset.id
-        let userEventObj
-        fetch("http://localhost:3000/api/v1/user_events", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json"
-          },
-          body: JSON.stringify({
-            "user_id": currentUser.id,
-            "event_id": eventId
+        if (!(foundEvent.users.map( user => user.name ).includes(currentUser.name))) {
+          const eventId = e.target.dataset.id
+          let userEventObj
+          fetch("http://localhost:3000/api/v1/user_events", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json"
+            },
+            body: JSON.stringify({
+              "user_id": currentUser.id,
+              "event_id": eventId
+            })
           })
-        })
-        .then( resp => resp.json())
-        .then( userEvent => {
+          .then( resp => resp.json())
+          .then( userEvent => {
+            window.alert("Successfully Signed Up!")
+            fetch(`${endPoint}/${userEvent.event_id}`)
+            .then(resp => resp.json())
+            .then( joinedEvent => {
+              eventsContainer.innerHTML = renderEventInfo(joinedEvent)
+              foundEvent = joinedEvent
+              const joinEventBtn = document.querySelector(".btn-outline-secondary")
+              e.target.innerText = "Attending"
+              joinEventBtn.parentNode.innerHTML = `<p style="color:green">Attending</p>`
+            })
+          })
+        } else {
+          window.alert("You're already attending!")
           e.target.innerText = "Attending"
-          e.target.parentNode.innerHTML = `<button data-action="attending" type="button" class="btn btn-outline-success btn-sm">Attending</button>`
-          window.alert("Successfully Signed Up!")
-          fetch(`${endPoint}/${userEvent.event_id}`)
-          .then(resp => resp.json())
-          .then( joinedEvent => {
-            eventsContainer.innerHTML = renderEventInfo(joinedEvent)
-            foundEvent = joinedEvent
-          })
-
-          // NEED TO UPDATE NUM OF ATTENDEES RENDERED ON PAGE AFTER FETCH REQUEST
-        })
+          e.target.parentNode.innerHTML = `<p style="color:green">Attending</p>`
+        }
       } else {
         window.alert("Sorry, that event is at capacity.")
       }
@@ -265,67 +272,67 @@ document.addEventListener('DOMContentLoaded', () => {
       })
     }
 
-    if (e.target.dataset.action === "edit-event") {
-      eventsContainer.innerHTML += `<br>
-       ${renderEditEventForm(foundEvent)}
-      `
-    }
-    if (e.target.dataset.action === "cancel-edit") {
-      e.preventDefault()
-      const editEventFormContainer = document.querySelector("#edit-event-form")
-      editEventFormContainer.remove()
-      console.log(foundEvent.id);
-    }
-    if (e.target.dataset.action === "submit-edit") {
-      const editEventFormContainer = document.querySelector("#edit-event-form")
-      const editEventTitle = document.querySelector("#title").value
-      const editEventDescription = document.querySelector("#description").value
-      const editEventLocation = document.querySelector("#location").value
-      const editEventCategory = document.querySelector("#category").value
-      const editEventMaxCapacity = document.querySelector("#max_attendance").value
-      const editEventMinCapacity = document.querySelector("#min_attendance").value
-      const editEventDate = document.querySelector("#date").value
-      const editEventTime = document.querySelector("#time").value
-      const editEventDuration = document.querySelector("#duration").value
-      const editEventImageUrl = document.querySelector("#image_url").value
-      fetch(`${endPoint}/${foundEvent.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        },
-        body: JSON.stringify({
-          "title": editEventTitle,
-          "description": editEventDescription,
-          "location": editEventLocation,
-          "category": editEventCategory,
-          "max_capacity": editEventMaxCapacity,
-          "min_capacity": editEventMinCapacity,
-          "date": editEventDate,
-          "time": editEventTime,
-          "duration": editEventDuration,
-          "image_url": editEventImageUrl
-        })
-      })
-      .then( resp => resp.json())
-      .then( edittedEvent => {
+      if (e.target.dataset.action === "edit-event") {
+        eventsContainer.innerHTML += `<br>
+         ${renderEditEventForm(foundEvent)}
+        `
+      }
+      if (e.target.dataset.action === "cancel-edit") {
+        e.preventDefault()
+        const editEventFormContainer = document.querySelector("#edit-event-form")
         editEventFormContainer.remove()
-        eventsContainer.innerHTML = renderEventInfo(edittedEvent)
-        console.log(edittedEvent);
-      })
-    }
+        console.log(foundEvent.id);
+      }
+      if (e.target.dataset.action === "submit-edit") {
+        const editEventFormContainer = document.querySelector("#edit-event-form")
+        const editEventTitle = document.querySelector("#title").value
+        const editEventDescription = document.querySelector("#description").value
+        const editEventLocation = document.querySelector("#location").value
+        const editEventCategory = document.querySelector("#category").value
+        const editEventMaxCapacity = document.querySelector("#max_attendance").value
+        const editEventMinCapacity = document.querySelector("#min_attendance").value
+        const editEventDate = document.querySelector("#date").value
+        const editEventTime = document.querySelector("#time").value
+        const editEventDuration = document.querySelector("#duration").value
+        const editEventImageUrl = document.querySelector("#image_url").value
+        fetch(`${endPoint}/${foundEvent.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          },
+          body: JSON.stringify({
+            "title": editEventTitle,
+            "description": editEventDescription,
+            "location": editEventLocation,
+            "category": editEventCategory,
+            "max_capacity": editEventMaxCapacity,
+            "min_capacity": editEventMinCapacity,
+            "date": editEventDate,
+            "time": editEventTime,
+            "duration": editEventDuration,
+            "image_url": editEventImageUrl
+          })
+        })
+        .then( resp => resp.json())
+        .then( edittedEvent => {
+          editEventFormContainer.remove()
+          eventsContainer.innerHTML = renderEventInfo(edittedEvent)
+          console.log(edittedEvent);
+        })
+      }
 
-    if (e.target.dataset.action === "delete-event") {
-      console.log(foundEvent)
-      fetch(`${endPoint}/${foundEvent.id}`, {
-        method: "DELETE"
-      })
-      .then(res => {
-        window.alert("bye bye")
-        renderAllEvents()
-      })
+      if (e.target.dataset.action === "delete-event") {
+        console.log(foundEvent)
+        fetch(`${endPoint}/${foundEvent.id}`, {
+          method: "DELETE"
+        })
+        .then(res => {
+          window.alert("bye bye")
+          renderAllEvents()
+        })
 
-    }
+      }
   })//END OF eventsContainer Listener
 
   // NEW EVENT FORM
@@ -488,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3>${event.title}</h3>
             <p class="card-text">${event.location}</p>
             <div class="d-flex justify-content-between align-items-center">
-              <div class="btn-group">
+              <div id="join-event-btn" class="btn-group">
                 <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
               </div>
               <small class="text-muted">${eventDate} at ${eventTime}</small>
