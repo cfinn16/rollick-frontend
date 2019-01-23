@@ -127,34 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.dataset.action === "more-info") {
       foundEvent = allEvents.find( event => event.id == e.target.dataset.id)
       jumbotronContainer.style.display = "none"
-      console.log(foundEvent);
       eventsContainer.innerHTML = renderEventInfo(foundEvent)
     }
 
     if (e.target.dataset.action === "join-event") {
       const eventId = e.target.dataset.id
 
-      fetch('http://localhost:3000/api/v1/user_events', {
-        method: "POST",
-
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-
-        body: JSON.stringify({
-          "title": newEventTitle,
-          "duration": newEventDuration,
-          "category": newEventCategory,
-          "location": newEventLocation,
-          "min_capacity": newEventMinAttendance,
-          "max_capacity": newEventMaxAttendance,
-          "date": newEventDate,
-          "time": newEventTime,
-          "image_url": newEventImageURL,
-          "description": newEventDescription
-        })
-      })
     }
   })
 
