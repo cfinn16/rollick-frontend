@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   blogHeaderContainer.addEventListener("click", e => {
-    location.reload()
+    // location.reload()
   })
 
   function formatTime(event) {
