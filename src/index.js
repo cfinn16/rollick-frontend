@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAllEvents()
           } else {
             window.alert("You are not a user! Please sign up.")
+            location.reload()
           }
         })
       })
@@ -73,11 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then( resp => resp.json())
         .then( user => {
-          currentUser = user
-          logInOrSignUpContainer.style.display = "none"
-          mainContainer.style.display = "block"
-          allUsers.push(currentUser)
-          renderAllEvents()
+          const newUserInput = document.querySelector("#inputName").value
+          if (allUsers.map( user => user.name ).includes(newUserInput)) {
+            window.alert("You already have an account! Please sign in.")
+            location.reload()
+          } else {
+            currentUser = user
+            logInOrSignUpContainer.style.display = "none"
+            mainContainer.style.display = "block"
+            allUsers.push(currentUser)
+            renderAllEvents()
+          }
         })
 
       }) // End of signUpFormContainer listener
@@ -85,16 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })
 
-
-
-
-  // RENDER SIGN-IN/SIGN-UP PAGE
-  // const signInFormContainer = document.querySelector("#form-signin")
-  //
-  // signInFormContainer.addEventListener("submit", e => {
-  //   e.preventDefault()
-  //   console.log(e.target)
-  // })
+  fetch("http://localhost:3000/api/v1/users")
+    .then( resp => resp.json())
+    .then( users => allUsers = users)
 
   // RENDER ALL EVENTS ON PAGE LOAD
   const endPoint = 'http://localhost:3000/api/v1/events';
@@ -149,13 +149,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.target.dataset.id === "my-events") {
       console.log("this should render a page of all currentUser's events");
-      console.log(findMyEvents(currentUser))
       jumbotronContainer.style.display = "none"
       eventsContainer.innerHTML = ""
-      const allMyEvents = findMyEvents(currentUser)
-      allMyEvents.map (event => {
-        eventsContainer.innerHTML += renderEventCard(event)
-      })
+      fetch(`http://localhost:3000/api/v1/users/${currentUser.id}`)
+        .then( resp => resp.json())
+        .then( user => {
+          console.log(user.events);
+          user.events.map (event => {
+            const currentEvent = allEvents.find( e => e.id === event.id )
+            console.log(currentEvent);
+            eventsContainer.innerHTML += renderEventCard(currentEvent)
+          })
+        })
     }
     if (e.target.dataset.id === "sign-out") {
       console.log('sign out');
@@ -164,14 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // FIND CURRENTUSER EVENTS ----- close but have to get this working
-  function findMyEvents(currentUser) {
-    const myUserEvents = allUserEvents.filter( userEvent => userEvent.user_id === currentUser.id)
-    return myUserEvents.map( userEvent => {
-      return allEvents.find( event => {
-        return event.id === userEvent.event_id
-      })
-    })
-  }
+  // function findMyEvents(currentUser) {
+  //   const myUserEvents = allUserEvents.filter( userEvent => userEvent.user_id === currentUser.id)
+  //   return myUserEvents.map( userEvent => {
+  //     return allEvents.find( event => {
+  //       return event.id === userEvent.event_id
+  //     })
+  //   })
+  // }
 
   fetch("http://localhost:3000/api/v1/user_events")
     .then( resp => resp.json())
@@ -261,8 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // RENDER AN EVENT'S INFO "PAGE"
     if (e.target.dataset.action === "more-info") {
       foundEvent = allEvents.find( event => event.id == e.target.dataset.id)
-      jumbotronContainer.style.display = "none"
-      eventsContainer.innerHTML = renderEventInfo(foundEvent)
+      fetch(`http://localhost:3000/api/v1/events/${foundEvent.id}`)
+        .then( resp => resp.json())
+        .then( event => {
+          jumbotronContainer.style.display = "none"
+          eventsContainer.innerHTML = renderEventInfo(event)
+        })
     }
 
     if (e.target.dataset.action === "join-event") {
@@ -285,33 +294,47 @@ document.addEventListener('DOMContentLoaded', () => {
           .then( resp => resp.json())
           .then( userEvent => {
             allUserEvents.push(userEvent)
+            foundUserEvent = userEvent
             window.alert("Successfully Signed Up!")
             fetch(`${endPoint}/${userEvent.event_id}`)
             .then(resp => resp.json())
             .then( joinedEvent => {
               eventsContainer.innerHTML = renderEventInfo(joinedEvent)
               foundEvent = joinedEvent
-              const joinEventBtn = document.querySelector(".btn-outline-secondary")
-              e.target.innerText = "Attending"
-              joinEventBtn.parentNode.innerHTML = `<p style="color:green">Attending</p>`
+              // const joinEventBtn = document.querySelector(".btn-outline-primary")
+              // e.target.innerText = "Attending"
+              // joinEventBtn.innerHTML = `<p style="color:green">Attending</p>`
             })
           })
         } else {
           window.alert("You're already attending!")
-          e.target.innerText = "Attending"
-          e.target.parentNode.innerHTML = `<p style="color:green">Attending</p>`
+          // e.target.innerText = "Attending"
+          // e.target.parentNode.innerHTML = `<p style="color:green">Attending</p>`
         }
       } else {
         window.alert("Sorry, that event is at capacity.")
       }
     }
 
-    if (e.target.dataset.action === "attending") {
+    if (e.target.dataset.action === "leave-event") {
+      foundUserEvent = allUserEvents.find( ue => ue.event_id === foundEvent.id && ue.user_id === currentUser.id)
+      window.alert("WOW, ok rude. Really want to leave?")
       fetch(`http://localhost:3000/api/v1/user_events/${foundUserEvent.id}`, {method: "DELETE"})
       .then( resp => {
-        window.alert("WOW, ok. Whatever we don't want you to come.")
-        e.target.parentNode.innerHTML = `<button data-action="join-event" data-id="${foundEvent.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>`
+        fetch(`http://localhost:3000/api/v1/users/${currentUser.id}`)
+          .then( resp => resp.json())
+          .then( user => {
+            jumbotronContainer.style.display = "none"
+            eventsContainer.innerHTML = ""
+            user.events.map( event => {
+              const currentEvent = allEvents.find( e => e.id === event.id)
+              eventsContainer.innerHTML += renderEventCard(currentEvent)
+            })
+          })
       })
+      fetch(`http://localhost:3000/api/v1/events/${foundEvent.id}`)
+        .then( resp => resp.json())
+        .then( event => {})
     }
 
       if (e.target.dataset.action === "edit-event") {
@@ -537,8 +560,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3>${event.title}</h3>
             <p class="card-text">${event.location}</p>
             <div class="d-flex justify-content-between align-items-center">
-              <div id="join-event-btn" class="btn-group">
-                <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
+              <div class="row">
+                ${renderJoinLeaveButtons(event)}
               </div>
               <small class="text-muted">${eventDate} at ${eventTime}</small>
             </div>
@@ -573,69 +596,22 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     `
   }
+  // <div id="join-event-btn" class="btn-group">
+  // <button id="join-event" data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-primary">Join Event</button>
+  //
+  // <button id="leave-event" data-action="leave-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger" style="display:none">Leave Event</button>
+  // </div>
 
+
+  function renderJoinLeaveButtons(currentEvent) {
+    if (currentEvent.users.map( user => user.name ).includes(currentUser.name)) {
+      return `<button id="leave-event" data-action="leave-event" data-id="${currentEvent.id}" type="button" class="btn btn-sm btn-outline-danger" style="display:block">Leave Event</button>`
+    } else {
+      return `<button id="join-event" data-action="join-event" data-id="${currentEvent.id}" type="button" class="btn btn-sm btn-outline-primary">Join Event</button>`
+    }
+  }
   //
-  // function showAttendees(event) {
-  //   if (event.users.length < 10) {
-  //     return event.users.map(user => {
-  //       return `<li>${user.name}</li>`
-  //     }).join('')
-  //   } else {
-  //     const lastTen = event.users.slice(event.users.length - 10, event.users.length)
-  //     return lastTen.map(user => {
-  //       return `<li>${user.name}</li>`
-  //     }).join('')
-  //   }
-  // }
-  //
-  // function renderEventInfo(event) {
-  //   const eventTime = formatTime(event)
-  //   const eventDate = formatDate(event)
-  //   return `
-  //   <div class="row">
-  //     <div class="col-md-6">
-  //       <div class="card mb-12 box-shadow">
-  //         <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
-  //         <div class="card-body">
-  //           <h3>${event.title}</h3>
-  //           <p class="card-text">${event.location}</p>
-  //           <div class="d-flex justify-content-between align-items-center">
-  //             <div class="btn-group">
-  //               <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
-  //             </div>
-  //             <small class="text-muted">${eventDate} at ${eventTime}</small>
-  //           </div>
-  //         </div>
-  //       </div>
-  //     </div>
-  //     <div class="col-md-6">
-  //       <div class="card mb-12 box-shadow">
-  //
-  //         <div class="card-body">
-  //           <p class="card-text">${event.description}</p>
-  //         </div>
-  //         <div class="card-body">
-  //           <p class="card-text">${event.max_capacity - event.users.length} spots remaining out of ${event.max_capacity}</p>
-  //         </div>
-  //         <div class="card-body">
-  //           <p class="card-text">Who's Attending:</p>
-  //           <ul id="attendee-list">
-  //             ${showAttendees(event)}
-  //           </ul>
-  //           <div class="d-flex justify-content-between align-items-center">
-  //             <div class="btn-group">
-  //               <button data-action="edit-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-info">Edit Event</button>
-  //             </div>
-  //             <div class="btn-group">
-  //               <button data-action="delete-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger">Delete Event</button>
-  //             </div>
-  //           </div>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   </div>
-  //   `
-  // }
+
 
   categoriesNavController.addEventListener("click", e => {
     e.preventDefault()
@@ -655,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (target === "career-and-business") {
       filterCategories("Career & Business")
+      console.log("hit me");
     }
     if (target === "food-and-drink") {
       filterCategories("Food & Drink")
@@ -677,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
   })//END OF CATEGORIES NAV LISTENER
 
   function filterCategories(category) {
-    filteredArray = allEvents.filter( event => event.category == category)
+    const filteredArray = allEvents.filter( event => event.category == category)
     eventsContainer.innerHTML = ""
     jumbotronContainer.style.display = "none"
     return filteredArray.map( event => eventsContainer.innerHTML += renderEventCard(event))
