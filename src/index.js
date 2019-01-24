@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventTime = formatTime(event)
     const eventDate = formatDate(event)
     const percentFull = Math.floor((event.users.length/event.max_capacity)*100)
+    console.log(event.users.length)
     return `
     <div class="col-md-12">
       <div class="card flex-md-row mb-4 shadow-sm h-md-250">
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   blogHeaderContainer.addEventListener("click", e => {
     if (e.target.dataset.id === "rollick-logo") {
+      updateAllEvents()
       console.log('this should re-render the home page');
       eventsContainer.innerHTML = ""
       jumbotronContainer.style.display = "block"
@@ -148,16 +150,15 @@ document.addEventListener('DOMContentLoaded', () => {
       })
     }
     if (e.target.dataset.id === "my-events") {
+      updateAllEvents()
       console.log("this should render a page of all currentUser's events");
       jumbotronContainer.style.display = "none"
       eventsContainer.innerHTML = ""
       fetch(`http://localhost:3000/api/v1/users/${currentUser.id}`)
         .then( resp => resp.json())
         .then( user => {
-          console.log(user.events);
           user.events.map (event => {
             const currentEvent = allEvents.find( e => e.id === event.id )
-            console.log(currentEvent);
             eventsContainer.innerHTML += renderEventCard(currentEvent)
           })
         })
@@ -207,6 +208,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${dateMonth}/${dateDay}/${dateYear}`
   }
 
+  function updateAllEvents() {
+    fetch(`${endPoint}`)
+      .then( resp => resp.json())
+      .then( events => allEvents = events )
+  }
+
+  function updateFoundEvent() {
+    fetch(`${endPoint}/${foundEvent.id}`)
+      .then( resp => resp.json())
+      .then( event => foundEvent = event )
+  }
+
+  function updateAllUserEvents() {
+    fetch(`http://localhost:3000/api/v1/user_events`)
+      .then( resp => resp.json())
+      .then( userEvents => allUserEvents = userEvents)
+  }
 
   // RENDER THE NEW EVENT FORM IN PLACE OF THE EVENTS INDEX
   jumbotronContainer.addEventListener("click", e => {
@@ -269,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch(`http://localhost:3000/api/v1/events/${foundEvent.id}`)
         .then( resp => resp.json())
         .then( event => {
+          console.log(event);
           jumbotronContainer.style.display = "none"
           eventsContainer.innerHTML = renderEventInfo(event)
         })
@@ -276,10 +295,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.target.dataset.action === "join-event") {
       e.preventDefault()
+      console.log(foundEvent)
+      updateAllEvents()
+      console.log(foundEvent)
+      updateFoundEvent()
+      console.log(foundEvent)
       if (foundEvent.max_capacity > foundEvent.users.length) {
+        // console.log(foundEvent, foundEvent.users, currentUser.name)
         if (!(foundEvent.users.map( user => user.name ).includes(currentUser.name))) {
           const eventId = e.target.dataset.id
-          let userEventObj
           fetch("http://localhost:3000/api/v1/user_events", {
             method: "POST",
             headers: {
@@ -299,11 +323,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch(`${endPoint}/${userEvent.event_id}`)
             .then(resp => resp.json())
             .then( joinedEvent => {
-              eventsContainer.innerHTML = renderEventInfo(joinedEvent)
               foundEvent = joinedEvent
-              // const joinEventBtn = document.querySelector(".btn-outline-primary")
-              // e.target.innerText = "Attending"
-              // joinEventBtn.innerHTML = `<p style="color:green">Attending</p>`
+              updateAllEvents()
+              eventsContainer.innerHTML = renderEventInfo(joinedEvent)
             })
           })
         } else {
@@ -317,13 +339,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (e.target.dataset.action === "leave-event") {
+      updateAllUserEvents()
+      console.log(foundUserEvent)
+
       foundUserEvent = allUserEvents.find( ue => ue.event_id === foundEvent.id && ue.user_id === currentUser.id)
+
+      console.log(foundUserEvent)
       window.alert("WOW, ok rude. Really want to leave?")
       fetch(`http://localhost:3000/api/v1/user_events/${foundUserEvent.id}`, {method: "DELETE"})
       .then( resp => {
         fetch(`http://localhost:3000/api/v1/users/${currentUser.id}`)
           .then( resp => resp.json())
           .then( user => {
+            updateAllEvents()
             jumbotronContainer.style.display = "none"
             eventsContainer.innerHTML = ""
             user.events.map( event => {
@@ -332,10 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
             })
           })
       })
-      fetch(`http://localhost:3000/api/v1/events/${foundEvent.id}`)
-        .then( resp => resp.json())
-        .then( event => {})
     }
+
 
       if (e.target.dataset.action === "edit-event") {
         eventsContainer.innerHTML += `<br>
@@ -614,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   categoriesNavController.addEventListener("click", e => {
+    updateAllEvents()
     e.preventDefault()
     let filteredArray = []
     const target = e.target.dataset.id;
