@@ -2,6 +2,8 @@ let allEvents = []
 let foundEvent
 let foundUserEvent
 let currentUser
+let allUsers = []
+let allUserEvents = []
 document.addEventListener('DOMContentLoaded', () => {
   console.log("still running");
 
@@ -74,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
           currentUser = user
           logInOrSignUpContainer.style.display = "none"
           mainContainer.style.display = "block"
-          console.log(currentUser);
+          allUsers.push(currentUser)
           renderAllEvents()
         })
 
@@ -82,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // })
     }
   })
+
 
 
 
@@ -117,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderEventCard(event) {
     const eventTime = formatTime(event)
     const eventDate = formatDate(event)
+    const percentFull = Math.floor((event.users.length/event.max_capacity)*100)
     return `
     <div class="col-md-12">
       <div class="card flex-md-row mb-4 shadow-sm h-md-250">
@@ -125,18 +129,55 @@ document.addEventListener('DOMContentLoaded', () => {
           <h3 class="mb-0">
             <a class="text-dark">${event.title}</a>
           </h3>
-          <div class="mb-1 text-muted">${eventDate} at ${eventTime}</div>
-          <button class="btn btn-info btn-lg" data-action="more-info" data-id=${event.id}>Learn More</button>
+          <div class="mb-1 text-muted">${eventDate} at ${eventTime}</div><br>
+          <button class="btn btn-info btn-lg" data-action="more-info" data-id=${event.id}>Learn More</button><br>
+          <h5 style="color:green">${percentFull}% full</h5>
         </div>
         <img src="${event.image_url}" style="width:50%; height:100%">
-
       </div>
     </div>`
   }
 
   blogHeaderContainer.addEventListener("click", e => {
-    // location.reload()
+    if (e.target.dataset.id === "rollick-logo") {
+      console.log('this should re-render the home page');
+      eventsContainer.innerHTML = ""
+      jumbotronContainer.style.display = "block"
+      allEvents.map (event => {
+        eventsContainer.innerHTML += renderEventCard(event)
+      })
+    }
+    if (e.target.dataset.id === "my-events") {
+      console.log("this should render a page of all currentUser's events");
+      console.log(findMyEvents(currentUser))
+      jumbotronContainer.style.display = "none"
+      eventsContainer.innerHTML = ""
+      const allMyEvents = findMyEvents(currentUser)
+      allMyEvents.map (event => {
+        eventsContainer.innerHTML += renderEventCard(event)
+      })
+    }
+    if (e.target.dataset.id === "sign-out") {
+      console.log('sign out');
+      location.reload()
+    }
   })
+
+  // FIND CURRENTUSER EVENTS ----- close but have to get this working
+  function findMyEvents(currentUser) {
+    const myUserEvents = allUserEvents.filter( userEvent => userEvent.user_id === currentUser.id)
+    return myUserEvents.map( userEvent => {
+      return allEvents.find( event => {
+        return event.id === userEvent.event_id
+      })
+    })
+  }
+
+  fetch("http://localhost:3000/api/v1/user_events")
+    .then( resp => resp.json())
+    .then( userEvents => {
+      allUserEvents = userEvents
+    })
 
   function formatTime(event) {
     let formattedTime
@@ -243,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
           })
           .then( resp => resp.json())
           .then( userEvent => {
+            allUserEvents.push(userEvent)
             window.alert("Successfully Signed Up!")
             fetch(`${endPoint}/${userEvent.event_id}`)
             .then(resp => resp.json())
@@ -532,68 +574,68 @@ document.addEventListener('DOMContentLoaded', () => {
     `
   }
 
-
-  function showAttendees(event) {
-    if (event.users.length < 10) {
-      return event.users.map(user => {
-        return `<li>${user.name}</li>`
-      }).join('')
-    } else {
-      const lastTen = event.users.slice(event.users.length - 10, event.users.length)
-      return lastTen.map(user => {
-        return `<li>${user.name}</li>`
-      }).join('')
-    }
-  }
-
-  function renderEventInfo(event) {
-    const eventTime = formatTime(event)
-    const eventDate = formatDate(event)
-    return `
-    <div class="row">
-      <div class="col-md-6">
-        <div class="card mb-12 box-shadow">
-          <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
-          <div class="card-body">
-            <h3>${event.title}</h3>
-            <p class="card-text">${event.location}</p>
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="btn-group">
-                <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
-              </div>
-              <small class="text-muted">${eventDate} at ${eventTime}</small>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="card mb-12 box-shadow">
-
-          <div class="card-body">
-            <p class="card-text">${event.description}</p>
-          </div>
-          <div class="card-body">
-            <p class="card-text">${event.max_capacity - event.users.length} spots remaining out of ${event.max_capacity}</p>
-          </div>
-          <div class="card-body">
-            <p class="card-text">Who's Attending:</p>
-            <ul id="attendee-list">
-              ${showAttendees(event)}
-            </ul>
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="btn-group">
-                <button data-action="edit-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-info">Edit Event</button>
-              </div>
-              <div class="btn-group">
-                <button data-action="delete-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger">Delete Event</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    `
-  }
+  //
+  // function showAttendees(event) {
+  //   if (event.users.length < 10) {
+  //     return event.users.map(user => {
+  //       return `<li>${user.name}</li>`
+  //     }).join('')
+  //   } else {
+  //     const lastTen = event.users.slice(event.users.length - 10, event.users.length)
+  //     return lastTen.map(user => {
+  //       return `<li>${user.name}</li>`
+  //     }).join('')
+  //   }
+  // }
+  //
+  // function renderEventInfo(event) {
+  //   const eventTime = formatTime(event)
+  //   const eventDate = formatDate(event)
+  //   return `
+  //   <div class="row">
+  //     <div class="col-md-6">
+  //       <div class="card mb-12 box-shadow">
+  //         <img class="card-img-top" data-src="holder.js/100px225?theme=thumb&amp;bg=55595c&amp;fg=eceeef&amp;text=Thumbnail" alt="Thumbnail [100%x225]" style="height: 300px; width: 100%; display: block;" src="${event.image_url}" data-holder-rendered="true">
+  //         <div class="card-body">
+  //           <h3>${event.title}</h3>
+  //           <p class="card-text">${event.location}</p>
+  //           <div class="d-flex justify-content-between align-items-center">
+  //             <div class="btn-group">
+  //               <button data-action="join-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-secondary">Join Event</button>
+  //             </div>
+  //             <small class="text-muted">${eventDate} at ${eventTime}</small>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //     <div class="col-md-6">
+  //       <div class="card mb-12 box-shadow">
+  //
+  //         <div class="card-body">
+  //           <p class="card-text">${event.description}</p>
+  //         </div>
+  //         <div class="card-body">
+  //           <p class="card-text">${event.max_capacity - event.users.length} spots remaining out of ${event.max_capacity}</p>
+  //         </div>
+  //         <div class="card-body">
+  //           <p class="card-text">Who's Attending:</p>
+  //           <ul id="attendee-list">
+  //             ${showAttendees(event)}
+  //           </ul>
+  //           <div class="d-flex justify-content-between align-items-center">
+  //             <div class="btn-group">
+  //               <button data-action="edit-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-info">Edit Event</button>
+  //             </div>
+  //             <div class="btn-group">
+  //               <button data-action="delete-event" data-id="${event.id}" type="button" class="btn btn-sm btn-outline-danger">Delete Event</button>
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   </div>
+  //   `
+  // }
 
   categoriesNavController.addEventListener("click", e => {
     e.preventDefault()
