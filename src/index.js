@@ -5,7 +5,7 @@ let currentUser
 let allUsers = []
 let allUserEvents = []
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("still running");
+  console.log("running");
 
   const eventsContainer = document.querySelector("#events-container")
   const jumbotronContainer = document.querySelector("#jumbotron")
@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventTime = formatTime(event)
     const eventDate = formatDate(event)
     const percentFull = Math.floor((event.users.length/event.max_capacity)*100)
-    console.log(event.users.length)
     return `
     <div class="col-md-12">
       <div class="card flex-md-row mb-4 shadow-sm h-md-250">
@@ -197,6 +196,10 @@ document.addEventListener('DOMContentLoaded', () => {
       formattedTime = getTime.split(":").splice(0, 2).join(":") + " AM"
     }
     return formattedTime
+  }
+
+  function formatEditTime(event) {
+    return event.time.split("T")[1].split(".")[0]
   }
 
   function formatDate(event) {
@@ -287,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch(`http://localhost:3000/api/v1/events/${foundEvent.id}`)
         .then( resp => resp.json())
         .then( event => {
-          console.log(event);
           jumbotronContainer.style.display = "none"
           eventsContainer.innerHTML = renderEventInfo(event)
         })
@@ -295,13 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.target.dataset.action === "join-event") {
       e.preventDefault()
-      console.log(foundEvent)
       updateAllEvents()
-      console.log(foundEvent)
       updateFoundEvent()
-      console.log(foundEvent)
       if (foundEvent.max_capacity > foundEvent.users.length) {
-        // console.log(foundEvent, foundEvent.users, currentUser.name)
         if (!(foundEvent.users.map( user => user.name ).includes(currentUser.name))) {
           const eventId = e.target.dataset.id
           fetch("http://localhost:3000/api/v1/user_events", {
@@ -340,11 +338,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.target.dataset.action === "leave-event") {
       updateAllUserEvents()
-      console.log(foundUserEvent)
 
       foundUserEvent = allUserEvents.find( ue => ue.event_id === foundEvent.id && ue.user_id === currentUser.id)
 
-      console.log(foundUserEvent)
       window.alert("WOW, ok rude. Really want to leave?")
       fetch(`http://localhost:3000/api/v1/user_events/${foundUserEvent.id}`, {method: "DELETE"})
       .then( resp => {
@@ -372,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault()
         const editEventFormContainer = document.querySelector("#edit-event-form")
         editEventFormContainer.remove()
-        console.log(foundEvent.id);
       }
       if (e.target.dataset.action === "submit-edit") {
         const editEventFormContainer = document.querySelector("#edit-event-form")
@@ -409,12 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then( edittedEvent => {
           editEventFormContainer.remove()
           eventsContainer.innerHTML = renderEventInfo(edittedEvent)
-          console.log(edittedEvent);
         })
       }
 
       if (e.target.dataset.action === "delete-event") {
-        console.log(foundEvent)
         fetch(`${endPoint}/${foundEvent.id}`, {
           method: "DELETE"
         })
@@ -509,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="col-md-4 mb-3">
           <label for="category">Category</label>
           <select id="category" class="custom-select">
-            <option selected>What kind of event is it?</option>
+            <option value="${event.category}" selected>${event.category}</option>
             <option value="Travel & Adventure">Travel & Adventure</option>
             <option value="Sports">Sports</option>
             <option value="Arts">Arts</option>
@@ -543,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="col-md-3 mb-3">
           <label for="time">Time</label>
-          <input type="time" class="form-control" id="time" value="" required>
+          <input type="time" class="form-control" id="time" value="${formatEditTime(event)}" required>
         </div>
         <div class="col-md-6 mb-3">
           <label for="image_url">Image URL</label>
@@ -553,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="form-row">
         <div class="col-md-12 mb-0">
           <label for="description">Description</label>
-          <textarea class="form-control" id="description" value="${event.description}" required></textarea>
+          <textarea class="form-control" id="description" required>${event.description}</textarea>
         </div>
       </div><br>
       <button data-action="cancel-edit" class="btn btn-primary">Cancel</button><button data-action="submit-edit" class="btn btn-primary" type="submit">Edit Event</button>
@@ -658,7 +651,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (target === "career-and-business") {
       filterCategories("Career & Business")
-      console.log("hit me");
     }
     if (target === "food-and-drink") {
       filterCategories("Food & Drink")
